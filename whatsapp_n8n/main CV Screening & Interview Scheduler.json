@@ -1,0 +1,837 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=sender: {{ $json.body.conversation.meta.sender.phone_number }}.\n\nmessage: {{ $json.body.conversation.messages[0].processed_message_content }}",
+        "options": {
+          "systemMessage": "=You are a helpful and reliable assistant that must always verify tool availability before performing any action. You operate exclusively through available tools or direct user interaction—you cannot simulate or pretend a tool exists if it's unavailable.\n\n## 🧠 MCP Sequential Thinking - CRITICAL PRIORITY\n\nBefore ANY task execution, you MUST:\n\n1. **List Available MCP Tools** - Always call `list_tools` first to check for MCP Sequential Thinking availability\n2. **Engage Thinking Mode** - If MCP Sequential Thinking tools are found, ALWAYS use `execute_tool` to invoke them for:\n   - Breaking down the user's request\n   - Planning your approach systematically\n   - Considering edge cases and potential issues\n   - Validating your reasoning before acting\n\n3. **Document Your Reasoning** - Use the thinking tools via `execute_tool` to create a clear thought process that:\n   - Identifies all required tools for the task\n   - Maps out the execution sequence\n   - Considers alternative approaches\n   - Anticipates potential failures\n\n### MCP Thinking Workflow:\n```\nUser Request → list_tools → execute_tool(thinking) → Verify Tool Availability → Plan Execution → Confirm with User → execute_tool(action)\n```\n\n**When MCP Sequential Thinking is available:**\n- Always start with a thinking phase using `execute_tool` before any action\n- Use `execute_tool` with thinking tools to validate assumptions and tool availability\n- Document decision-making process transparently\n- Let thinking guide your verification and planning steps\n\n**When MCP Sequential Thinking is NOT available:**\n- Proceed with standard tool verification process\n- Acknowledge the absence of advanced thinking tools\n- Use best judgment with available capabilities\n\n---\n\n## 🔍 Core Tool Usage Rule\n\nBefore executing ANY operation (search, fetch, create, update, delete, summarize, analyze, schedule, send, etc.):\n\n1. **List all available tools** - Call `list_tools` to check which tools are currently accessible\n2. **Use MCP thinking** - If available, call `execute_tool` with thinking mode to plan approach\n3. **Verify required tools** - Confirm all necessary tools for the operation exist in the list\n4. **If a required tool is unavailable:**\n   - Clearly inform the user that the specific tool is not accessible\n   - Ask for clarification or propose alternative approaches\n   - Do NOT proceed with the operation\n\n5. **Execute with execute_tool** - All tool operations MUST use `execute_tool` with the appropriate tool name and parameters\n\nOnly after verification and thinking may you describe your plan (e.g., \"I've analyzed the request and will use [tool name] to accomplish this...\")\n\n### Critical Rule: ALL Tool Invocations Use execute_tool\n\n**After calling `list_tools`, you MUST use `execute_tool` for:**\n- MCP Sequential Thinking operations\n- Web search/fetch tools\n- Calendar/scheduling APIs\n- Email/messaging services\n- Document processing tools\n- Spreadsheet/database APIs\n- File management systems\n- Time/timezone utilities\n- Authentication services\n- Any specialized domain tools\n\n**Never call tools directly by name - always wrap them in `execute_tool`**\n\n---\n\n## 📋 Document & Data Management (Example Pattern)\n\n**Rules:**\n1. **List tools first** - Call `list_tools` to verify availability of document processing tools\n2. **Use MCP thinking** - Call `execute_tool` with thinking tools to plan the document workflow systematically\n3. **Verify tool availability** - Check that all required tools in the workflow are accessible\n4. **Use proper identifiers** - Always obtain and use system-generated IDs (not user-provided names)\n5. **Use automatic identifiers** - Leverage context (sender's phone, user ID, session) to derive identifiers\n6. **Follow the tool chain** - If Tool A provides an ID needed by Tool B, always call Tool A via `execute_tool` first\n7. **Request confirmation** - Before any create, update, or delete operation, explicitly ask for user approval\n8. **Direct invocation** - When users request an action, invoke the appropriate tool via `execute_tool` directly\n\n### Example Workflow:\n```\n1. list_tools\n2. execute_tool(thinking_tool, params) → Plan document processing\n3. If processing requires a storage ID: \n   execute_tool(id_lookup_tool, params) → Get/create ID using automatic identifiers\n4. execute_tool(document_tool, {id: returned_id, ...}) → Use returned IDs for operations\n5. Never accept arbitrary names as system identifiers\n6. Confirm before modifying or deleting data\n```\n\n---\n\n## 🗓️ Time, Scheduling & Event Management (Example Pattern)\n\nWhen working with calendar, scheduling, or time-related tools:\n\n1. **List available tools** - Call `list_tools` to check for time and scheduling APIs\n2. **Use MCP thinking** - Call `execute_tool` with thinking tools to plan the scheduling workflow and identify conflicts\n3. **Use available time tools via execute_tool** to:\n   - Interpret and validate user-provided timestamps\n   - Detect scheduling conflicts\n   - Convert between time zones or formats\n   - Calculate durations or intervals\n\n### For event operations:\n1. **Check API availability** - Verify calendar/scheduling tool access in `list_tools` output\n2. **Perform necessary lookups** - Use `execute_tool(search_tool, params)` to find relevant events\n3. **Confirm actions** - Always request user approval before creating, updating, or deleting events\n4. **Handle conflicts** - Use `execute_tool(conflict_detection_tool, params)` when available, inform user of issues\n\n---\n\n## 📧 Communication Tools (Example Pattern)\n\n**Before operations:**\n1. **List available tools** - Call `list_tools` to check for communication APIs\n2. **Use MCP thinking** - Call `execute_tool(thinking_tool, params)` to plan the communication flow and consider implications\n3. **Verify API access** - Check that the communication tool is available\n   - **If unavailable** - Inform user and propose manual alternatives\n   - **If available** - Use `execute_tool(communication_tool, params)` with appropriate methods (list, get, send, modify, delete)\n\n### Safety rules:\n- Always confirm before bulk operations (especially deletion)\n- Respect user privacy and data sensitivity\n- Validate recipients before sending via `execute_tool`\n- Confirm destructive actions explicitly\n\n---\n\n## 📋 CV & Sheet Management - Specific Implementation\n\nWhen working with CV processing and sheet management tools:\n\n### Automatic Sheet Identification:\n- Sheet name is ALWAYS the sender's phone number (e.g., \"962776241974\")\n- Never ask the user for a sheet name\n- Extract the phone number from the message context/sender information automatically\n- Use this phone number directly when calling the Search & Create CV Sheet API via `execute_tool`\n\n### Workflow:\n```\n1. list_tools → Verify CV Summarize and Sheet APIs\n2. execute_tool(thinking_tool, params) → Plan the CV processing workflow\n3. Extract sender's phone number → Get it from message metadata/context automatically\n4. execute_tool(search_create_cv_sheet, {sheet_name: phone_number}) → Pass the phone number as the sheet name\n5. Receive sheet_id → Use this ID for all subsequent operations\n6. execute_tool(cv_summarize_tool, params) → Process CV as needed\n7. execute_tool(cv_sheet_manager, {sheet_id: sheet_id, ...}) → Perform sheet operations\n```\n\n### Example:\nWhen user says \"Start process cvs\":\n```\n1. list_tools\n2. execute_tool(thinking_tool, {\n     task: \"User wants to process CVs. I need to:\n            - Extract sender's phone number from context\n            - Create/find CV sheet with phone number as name\n            - Process CVs using the sheet_id\"\n   })\n3. Extract phone number from sender: +962776241974 → 962776241974\n4. execute_tool(search_create_cv_sheet, {sheet_name: \"962776241974\"})\n5. Receive: sheet_id=\"abc123xyz\"\n6. execute_tool(cv_processing_tool, {sheet_id: \"abc123xyz\", ...})\n```\n\n**Never ask:** \"What is the name of the CV sheet?\"  \n**Always derive** it automatically from sender's phone number.\n\n---\n\n## ✅ General Behavior Guidelines\n\n### Always:\n- **List tools first** - Call `list_tools` before any operation\n- **Use MCP thinking** - Call `execute_tool(thinking_tool, params)` when available to plan systematically\n- **Verify before acting** - Check tool availability for every operation\n- **Use execute_tool for ALL operations** - Every tool invocation must go through `execute_tool`\n- **Use tools for lookups** - Prefer `execute_tool(lookup_tool, params)` over asking users for IDs/identifiers\n- **Use automatic context** - Leverage available context (sender info, user ID, session data)\n- **Confirm important actions** - Request approval before create/update/delete operations\n- **Be transparent** - Clearly state when tools are unavailable and why\n- **Respect tool outputs** - Use system-generated identifiers from tool responses\n\n### Never:\n- Skip the `list_tools` step\n- Proceed without MCP thinking when it's available\n- Assume a tool is available without checking\n- Call tools directly without wrapping in `execute_tool`\n- Proceed with operations when required tools are inaccessible\n- Ask users for identifiers that can be automatically derived from context\n- Perform destructive actions without explicit confirmation\n- Offer unnecessary choices when tool capabilities are clear\n\n### Communication style:\n- Be polite, contextual, and concise\n- Show your thinking process when using MCP tools\n- State tool limitations clearly when they affect the task\n- Propose practical alternatives when tools are unavailable\n- Focus on what you CAN do with available tools\n\n---\n\n## 🎯 Standard Operating Procedure\n\n### For EVERY user request:\n\n**Step 1:** Call `list_tools` to get all available tools (check for MCP Sequential Thinking)\n\n**Step 2:** If MCP thinking available → Call `execute_tool(thinking_tool, {analysis: request})` to analyze request and plan approach\n\n**Step 3:** Verify all required tools for the planned approach exist in the tools list\n\n**Step 4:** If tools unavailable → Inform user and propose alternatives\n\n**Step 5:** If tools available → Present plan and request confirmation if needed\n\n**Step 6:** Execute using `execute_tool(tool_name, parameters)` for each operation\n\n**Step 7:** Verify results and inform user\n\n---\n\n## 🚨 CRITICAL REMINDERS\n\n1. **ALWAYS call `list_tools` first**\n2. **ALWAYS use `execute_tool` for any tool operation after listing**\n3. **NEVER call tools directly - only through `execute_tool`**\n4. **Use thinking tools via `execute_tool` before complex operations**\n5. **Derive identifiers automatically from context when possible**\n6. **Confirm before destructive operations**\n7. **Be transparent about tool availability and limitations**\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        -1008
+      ],
+      "id": "1eacc621-b893-4a56-8abe-09250d2de1ea",
+      "name": "AI Agent",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        416,
+        -656
+      ],
+      "id": "d04be0ae-01b4-49b0-965e-951fa51581dd",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PQxhK8XM9oSjddYd",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Use this tools to get the best person from cvs, You must use other tools to get the sheet_id.",
+        "url": "=https://n8n.hamzashamaseen.dpdns.org/webhook/search-candidates",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "sheet_id",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters1_Value', ``, 'string') }}"
+            },
+            {
+              "name": "Job position",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters2_Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        1312,
+        -608
+      ],
+      "id": "c5b3f5e3-6dd1-497f-afb5-f28eaa4c4bf1",
+      "name": "Top person"
+    },
+    {
+      "parameters": {
+        "model": "z-ai/glm-4.5-air:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        528,
+        -656
+      ],
+      "id": "ecce644f-c755-4562-bd84-bcf3e1fe4da4",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "MXrT7v4Aa4sugOBR",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "outputFieldName": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Output_Field_Name', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dateTimeTool",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -608
+      ],
+      "id": "3826650d-f9bc-49a5-b2cd-9ebc7f3bfe78",
+      "name": "Date & Time"
+    },
+    {
+      "parameters": {
+        "endpointUrl": "https://n8n.hamzashamaseen.dpdns.org/mcp/93706721-21c6-48cd-afcd-0ee66feeea30",
+        "serverTransport": "httpStreamable",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.1,
+      "position": [
+        2160,
+        -432
+      ],
+      "id": "3e81ba78-3250-46dd-bc4a-ac471c01b338",
+      "name": "Webex MCP Client"
+    },
+    {
+      "parameters": {
+        "endpointUrl": "https://n8n.hamzashamaseen.dpdns.org/mcp/7a1acee6-783d-40ab-aca3-993dc7aaa37d",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.1,
+      "position": [
+        2048,
+        -432
+      ],
+      "id": "58560d4f-81e7-49c8-8cbf-f1bcd4014ae9",
+      "name": "Gmail MCP Client"
+    },
+    {
+      "parameters": {
+        "endpointUrl": "https://n8n.hamzashamaseen.dpdns.org/mcp/c360a222-7ce6-4473-a566-c55570a60498",
+        "serverTransport": "httpStreamable",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.1,
+      "position": [
+        1856,
+        -608
+      ],
+      "id": "c54a0805-b11e-4476-a1ee-3fd34db13ec9",
+      "name": "calendar MCP Client"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Use this tool to summarize CVs. You must use other tools to obtain the sheet_id.",
+        "url": "=https://n8n.hamzashamaseen.dpdns.org/webhook/e99a90c4-0696-46da-b729-92596d37a6c2",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "sheet_id",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        1456,
+        -608
+      ],
+      "id": "8e4524a7-c44e-4155-8e97-b59a32926ba2",
+      "name": "CV summarize"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.conversation.meta.sender.identifier }}",
+        "tableName": "CV_Screening_and_nterview_Scheduler",
+        "contextWindowLength": 1
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        1088,
+        -608
+      ],
+      "id": "1ee50d9c-e7e7-4f2f-955c-8b294d2081d4",
+      "name": "Postgres Chat Memory",
+      "notesInFlow": false,
+      "credentials": {
+        "postgres": {
+          "id": "1kC6jXErsPmU2i0A",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "c700b814-0679-4583-808b-b05c7e7052c4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        64,
+        -1104
+      ],
+      "id": "7d2153bf-0cc2-4eac-909d-ca6b1d0d08be",
+      "name": "Webhook",
+      "webhookId": "c700b814-0679-4583-808b-b05c7e7052c4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5f9b6a4a-d692-49a8-97bc-9b9f5b91fe05",
+              "name": "body.conversation.meta.sender.identifier",
+              "value": "={{ $json.body.conversation.meta.sender.identifier }}",
+              "type": "string"
+            },
+            {
+              "id": "d4d20bfd-dbc0-426f-9ab8-926e7232b428",
+              "name": "body.conversation.meta.sender.phone_number",
+              "value": "={{ $json.body.conversation.meta.sender.phone_number }}",
+              "type": "string"
+            },
+            {
+              "id": "cd9f9780-2626-4ee9-be39-6c0e29d6d565",
+              "name": "body.conversation.labels",
+              "value": "={{ $json.body.conversation.labels }}",
+              "type": "array"
+            },
+            {
+              "id": "40265b20-5062-44e6-8e36-c627e1035219",
+              "name": "body.conversation.messages[0].processed_message_content",
+              "value": "={{ $json.body.conversation.messages[0].processed_message_content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        496,
+        -1120
+      ],
+      "id": "a0088325-8725-42f1-bf69-c07feb7a8c9c",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ad3eef39-823c-4e19-9f07-ea1e01e60b81",
+              "leftValue": "={{ $json.body.conversation.labels }}",
+              "rightValue": "hr",
+              "operator": {
+                "type": "array",
+                "operation": "contains",
+                "rightType": "any"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        688,
+        -1104
+      ],
+      "id": "e02712fb-c878-49e2-a3ae-cbc0d9134773",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "=Hamza shamaseen",
+        "remoteJid": "={{ $('Webhook').item.json.body.conversation.meta.sender.identifier }}",
+        "messageText": "={{ $json.output }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        1824,
+        -1104
+      ],
+      "id": "26385631-2c7b-4a42-bd9f-9e7474fe1811",
+      "name": "Enviar texto",
+      "credentials": {
+        "evolutionApi": {
+          "id": "SMj9m08988UFV8QI",
+          "name": "Evolution account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        640,
+        -656
+      ],
+      "id": "83d4660e-32bc-4272-80bd-9bcc00285374",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PQxhK8XM9oSjddYd",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b5b26e56-8050-4fdb-87a2-0efaad9bc08b",
+              "leftValue": "={{ $json.body.message_type }}",
+              "rightValue": "incoming",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        288,
+        -1120
+      ],
+      "id": "8d55ab5c-c9f3-463f-ae11-464b1881b231",
+      "name": "If1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        416,
+        -976
+      ],
+      "id": "54d30837-9c0a-4566-9fcf-64c3f1a99c2f",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://chatwoot-chatwoot.b3zrfu.easypanel.host/api/v1/accounts/{{ $('Webhook').item.json.body.conversation.messages[0].account_id }}/conversations/{{ $('Webhook').item.json.body.conversation.messages[0].conversation_id }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1600,
+        -1104
+      ],
+      "id": "9d59302b-9a4d-4ab9-a56a-2c806a9a9628",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "NQH6xU9w1jiNC99Q",
+          "name": "Header Auth account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "toolDescription": "search and create a CV sheet and return sheet_id",
+        "url": "https://n8n.hamzashamaseen.dpdns.org/webhook/98f286ad-9135-4b1d-9147-d23942408d15",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "sheet_name",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        1600,
+        -608
+      ],
+      "id": "0f6b6d9e-039f-4455-9f32-8319bc00ca56",
+      "name": "search and create CV sheet"
+    },
+    {
+      "parameters": {
+        "endpointUrl": "https://n8n.hamzashamaseen.dpdns.org/mcp/9e10ec8f-da2e-47c3-bc94-f65f451245f6",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        2016,
+        -608
+      ],
+      "id": "05239242-9f8d-4ec0-9bce-5c6c7f6ae176",
+      "name": "CV sheet manager MCP Client"
+    },
+    {
+      "parameters": {
+        "endpointUrl": "https://n8n.hamzashamaseen.dpdns.org/mcp/ae76bcd5-f848-4ad1-9cb1-cfda18d738c1",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        2144,
+        -608
+      ],
+      "id": "fa31dad6-902a-440d-92fd-e02f537bb92b",
+      "name": "MCP Sequential Thinking"
+    }
+  ],
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "Top person": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "Date & Time": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webex MCP Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail MCP Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "calendar MCP Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CV summarize": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Enviar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search and create CV sheet": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CV sheet manager MCP Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Sequential Thinking": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "headers": {
+          "host": "n8n.hamzashamaseen.dpdns.org",
+          "user-agent": "rest-client/2.1.0 (linux-musl x86_64) ruby/3.4.4p34",
+          "content-length": "3565",
+          "accept": "application/json",
+          "accept-encoding": "gzip, br",
+          "cdn-loop": "cloudflare; loops=1",
+          "cf-connecting-ip": "79.137.73.28",
+          "cf-ipcountry": "FR",
+          "cf-ray": "98d90c1be88cca0d-CDG",
+          "cf-visitor": "{\"scheme\":\"https\"}",
+          "cf-warp-tag-id": "b63cb691-0a02-4fb4-bc8c-471e3dad31c2",
+          "connection": "keep-alive",
+          "content-type": "application/json",
+          "x-forwarded-for": "79.137.73.28",
+          "x-forwarded-proto": "https"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "account": {
+            "id": 1,
+            "name": "Acacus"
+          },
+          "additional_attributes": {},
+          "content_attributes": {},
+          "content_type": "text",
+          "content": "Find for me the best pero person for ai enginner positon",
+          "conversation": {
+            "additional_attributes": {},
+            "can_reply": true,
+            "channel": "Channel::Api",
+            "contact_inbox": {
+              "id": 13,
+              "contact_id": 3,
+              "inbox_id": 4,
+              "source_id": "519f34e5-ff1f-4b77-a58b-e3ad44b1c5ed",
+              "created_at": "2025-10-10T19:25:04.537Z",
+              "updated_at": "2025-10-10T19:25:04.537Z",
+              "hmac_verified": false,
+              "pubsub_token": "TFoDj7aMNAW6TLbusQLZ5SWG"
+            },
+            "id": 10,
+            "inbox_id": 4,
+            "messages": [
+              {
+                "id": 604,
+                "content": "Find for me the best pero person for ai enginner positon",
+                "account_id": 1,
+                "inbox_id": 4,
+                "conversation_id": 10,
+                "message_type": 0,
+                "created_at": 1760297798,
+                "updated_at": "2025-10-12T19:36:38.435Z",
+                "private": false,
+                "status": "sent",
+                "source_id": "WAID:C8370A7C7760F45958E0A4DAAD32FAFD",
+                "content_type": "text",
+                "content_attributes": {},
+                "sender_type": "Contact",
+                "sender_id": 3,
+                "external_source_ids": {},
+                "additional_attributes": {},
+                "processed_message_content": "Find for me the best pero person for ai enginner positon",
+                "sentiment": {},
+                "conversation": {
+                  "assignee_id": 1,
+                  "unread_count": 10,
+                  "last_activity_at": 1760297798,
+                  "contact_inbox": {
+                    "source_id": "519f34e5-ff1f-4b77-a58b-e3ad44b1c5ed"
+                  }
+                },
+                "sender": {
+                  "additional_attributes": {},
+                  "custom_attributes": {},
+                  "email": null,
+                  "id": 3,
+                  "identifier": "962776241974@s.whatsapp.net",
+                  "name": ".",
+                  "phone_number": "+962776241974",
+                  "thumbnail": "",
+                  "blocked": false,
+                  "type": "contact"
+                }
+              }
+            ],
+            "labels": [
+              "hr"
+            ],
+            "meta": {
+              "sender": {
+                "additional_attributes": {},
+                "custom_attributes": {},
+                "email": null,
+                "id": 3,
+                "identifier": "962776241974@s.whatsapp.net",
+                "name": ".",
+                "phone_number": "+962776241974",
+                "thumbnail": "",
+                "blocked": false,
+                "type": "contact"
+              },
+              "assignee": {
+                "id": 1,
+                "name": "hamza ",
+                "available_name": "hamza ",
+                "avatar_url": "https://chatwoot-chatwoot.b3zrfu.easypanel.host/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBCZz09IiwiZXhwIjpudWxsLCJwdXIiOiJibG9iX2lkIn19--39f7a8a07ea01d33618b4c9e8f3c3ef7cf8430c0/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdCem9MWm05eWJXRjBTU0lKYW5CbFp3WTZCa1ZVT2hOeVpYTnBlbVZmZEc5ZlptbHNiRnNIYVFINk1BPT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--11d1e4b0790df3a8e1c1583846d94bd51e49c386/74a83297f65d2e8b866a5a13ce2d0f77.jpeg",
+                "type": "user",
+                "availability_status": null,
+                "thumbnail": "https://chatwoot-chatwoot.b3zrfu.easypanel.host/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBCZz09IiwiZXhwIjpudWxsLCJwdXIiOiJibG9iX2lkIn19--39f7a8a07ea01d33618b4c9e8f3c3ef7cf8430c0/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdCem9MWm05eWJXRjBTU0lKYW5CbFp3WTZCa1ZVT2hOeVpYTnBlbVZmZEc5ZlptbHNiRnNIYVFINk1BPT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--11d1e4b0790df3a8e1c1583846d94bd51e49c386/74a83297f65d2e8b866a5a13ce2d0f77.jpeg"
+              },
+              "team": null,
+              "hmac_verified": false
+            },
+            "status": "open",
+            "custom_attributes": {},
+            "snoozed_until": null,
+            "unread_count": 10,
+            "first_reply_created_at": "2025-10-10T19:25:04.659Z",
+            "priority": null,
+            "waiting_since": 1760297798,
+            "agent_last_seen_at": 1760125837,
+            "contact_last_seen_at": 1760197995,
+            "last_activity_at": 1760297798,
+            "timestamp": 1760297798,
+            "created_at": 1760124304,
+            "updated_at": 1760297798.47437
+          },
+          "created_at": "2025-10-12T19:36:38.435Z",
+          "id": 604,
+          "inbox": {
+            "id": 4,
+            "name": "Hamza Shamaseen"
+          },
+          "message_type": "incoming",
+          "private": false,
+          "sender": {
+            "account": {
+              "id": 1,
+              "name": "Acacus"
+            },
+            "additional_attributes": {},
+            "avatar": "",
+            "custom_attributes": {},
+            "email": null,
+            "id": 3,
+            "identifier": "962776241974@s.whatsapp.net",
+            "name": ".",
+            "phone_number": "+962776241974",
+            "thumbnail": "",
+            "blocked": false
+          },
+          "source_id": "WAID:C8370A7C7760F45958E0A4DAAD32FAFD",
+          "event": "message_created"
+        },
+        "webhookUrl": "https://n8n.hamzashamaseen.dpdns.org/webhook/c700b814-0679-4583-808b-b05c7e7052c4",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "eec1566fcd8323fe2827bc00200f403cce37cac2caa714ef5dfd057298c08dd8"
+  }
+}
