@@ -8,11 +8,13 @@ python-multipart==0.0.6
 # LangChain/LangGraph
 langchain==0.1.4
 langchain-google-genai==0.0.6
-langgraph==0.0.20
+langgraph>=0.2.0  # Updated for PostgresSaver
 langchain-community==0.0.13
+mcp>=1.0.0  # MCP protocol support
 
 # Database
 psycopg2-binary==2.9.9
+psycopg>=3.1.0  # Required for LangGraph PostgresSaver
 sqlalchemy==2.0.25
 
 # Google Services

@@ -1,412 +1,413 @@
-# WhatsApp HR Assistant 🤖
+# WhatsApp HR Assistant
 
-An intelligent HR recruitment assistant powered by **LangGraph**, **Google Gemini**, and **MCP (Model Context Protocol)**. Automates CV processing, candidate screening, interview scheduling, and communication via WhatsApp.
+An intelligent HR recruitment assistant powered by LangGraph, Google Gemini, and PostgreSQL. Handles CV processing, candidate management, email communication, and interview scheduling through WhatsApp.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
-![Python](https://img.shields.io/badge/python-3.9+-green)
-![License](https://img.shields.io/badge/license-MIT-orange)
+## 🎯 Features
 
-## 🌟 Features
-
-### **Core Capabilities**
-- ✅ **CV Processing**: Extract and analyze CVs from Google Drive automatically
-- ✅ **Smart Search**: AI-powered candidate ranking for job positions
-- ✅ **Interview Scheduling**: Automated calendar event creation
-- ✅ **Email Management**: Send invitations, read, and reply to candidates
-- ✅ **Conversation Memory**: Context-aware multi-turn conversations
-- ✅ **Real-time Dashboard**: Monitor all requests and AI decisions
-
-### **MCP Tools (Full CRUD)**
-- 📧 **Gmail** (5 ops): Send, Get, Read, Reply, Search emails
-- 📅 **Calendar** (5 ops): Create, List, Get, Update, Delete events
-- 📊 **CV Sheet Manager** (7 ops): Read, Append, Update, Delete, Search, Count, Clear
-- 💼 **CV Processing** (3 ops): Search/Create Sheet, Process CVs, Search Candidates
-- 📞 **Webex** (4 ops): Create, Get, Update, Delete meetings
-- 🕐 **DateTime** (3 ops): Get current, Add time, Format datetime
-- 🧠 **Sequential Thinking**: AI planning for complex workflows
+- **Conversational Memory**: PostgreSQL-backed conversation history using LangGraph checkpointer
+- **CV Processing**: Automatic extraction and management of candidate data from Google Drive
+- **Email Integration**: Gmail API for candidate communication
+- **Calendar Management**: Google Calendar for interview scheduling
+- **Video Conferencing**: Webex meeting creation and management
+- **Multi-Tool Architecture**: 8+ specialized tools for HR tasks
+- **Real-time Dashboard**: Monitor requests, tool usage, and performance metrics
+- **WhatsApp Integration**: Chatwoot and Evolution API support
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    WhatsApp / Chatwoot                  │
-└────────────────────┬────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     WhatsApp Input                          │
+│              (Chatwoot / Evolution API)                     │
+└────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
-┌─────────────────────────────────────────────────────────┐
-│              FastAPI Webhook Handler                     │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │           Request Logger & Dashboard            │   │
-│  └─────────────────────────────────────────────────┘   │
-└────────────────────┬────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                  FastAPI Server                             │
+│                  (main.py)                                  │
+└────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
-┌─────────────────────────────────────────────────────────┐
-│                 LangGraph Agent                         │
-│  ┌──────────────────────────────────────────────┐      │
-│  │         Google Gemini 2.5 Flash              │      │
-│  └──────────────────────────────────────────────┘      │
-│                     │                                    │
-│  ┌──────────────────▼──────────────────────────┐       │
-│  │         MCP Protocol (execute_tool)          │       │
-│  └──────────────────┬──────────────────────────┘       │
-└────────────────────┬────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│              LangGraph Agent                                │
+│   ┌──────────────────────────────────────────────┐         │
+│   │  State: Annotated[messages, add_messages]    │         │
+│   │  - Automatic message accumulation            │         │
+│   │  - PostgreSQL checkpointer                   │         │
+│   └──────────────────────────────────────────────┘         │
+│                                                             │
+│   ┌──────────┐      ┌──────────┐      ┌──────────┐       │
+│   │  Agent   │─────▶│  Tools   │─────▶│  Agent   │       │
+│   │  Node    │      │  Node    │      │  Node    │       │
+│   └──────────┘      └──────────┘      └──────────┘       │
+└────────────────────┬────────────────────────────────────────┘
                      │
-        ┌────────────┴────────────┐
-        ▼                         ▼
-┌──────────────┐          ┌──────────────┐
-│  Gmail MCP   │          │ Calendar MCP │
-└──────────────┘          └──────────────┘
-        ▼                         ▼
-┌──────────────┐          ┌──────────────┐
-│  Sheet MCP   │          │  Webex MCP   │
-└──────────────┘          └──────────────┘
-        ▼                         ▼
-┌──────────────┐          ┌──────────────┐
-│ CV Tools MCP │          │ DateTime MCP │
-└──────────────┘          └──────────────┘
-```
-
-## 📁 Project Structure
-
-```
-whatsapp_hr_assistant/
-├── agents/                  # LangGraph agent implementation
-│   ├── hr_agent.py         # Main agent logic
-│   └── prompts.py          # System prompts
-├── mcp/                     # MCP Tools (separated for easy monitoring)
-│   ├── gmail_mcp.py        # Email operations (5 ops)
-│   ├── calendar_mcp.py     # Calendar CRUD (5 ops)
-│   ├── cv_manager.py       # Sheet CRUD (7 ops)
-│   ├── cv_tools_mcp.py     # CV processing (3 ops)
-│   ├── webex_mcp.py        # Webex meetings (4 ops)
-│   ├── datetime_mcp.py     # Time utilities (3 ops)
-│   ├── thinking.py         # Sequential thinking
-│   └── base.py             # MCP infrastructure
-├── models/                  # Database models
-│   └── request_logs.py     # Request logging schemas
-├── services/                # Core services
-│   ├── google_drive.py     # Google APIs integration
-│   ├── whatsapp.py         # WhatsApp/Chatwoot client
-│   ├── memory.py           # Conversation memory
-│   └── request_logger.py   # Request logging service
-├── tools/                   # LangChain tools (legacy)
-├── docs/                    # Documentation
-│   ├── MCP_MIGRATION.md
-│   ├── OAUTH_MIGRATION_GUIDE.md
-│   └── FIX_PERMISSIONS.md
-├── main.py                  # FastAPI application + Dashboard
-├── config.py                # Configuration management
-├── test_components.ipynb    # Component testing
-├── test_agent.ipynb         # Agent workflow testing
-├── MCP_TOOLS_OVERVIEW.md    # Complete MCP reference
-└── requirements.txt         # Python dependencies
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Tool Layer                               │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐           │
+│  │   Gmail    │  │  Calendar  │  │   Webex    │           │
+│  └────────────┘  └────────────┘  └────────────┘           │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐           │
+│  │ CV Manager │  │  DateTime  │  │CV Processor│           │
+│  └────────────┘  └────────────┘  └────────────┘           │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│               PostgreSQL Database                           │
+│  - Checkpoints (conversation memory)                        │
+│  - Request logs                                             │
+│  - Tool execution logs                                      │
+│  - Candidate data                                           │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## 🚀 Quick Start
 
-### 1. Prerequisites
+### Prerequisites
 
-- Python 3.9+
-- PostgreSQL database
-- Google Cloud Project with APIs enabled:
-  - Gmail API
-  - Google Calendar API
-  - Google Drive API
-  - Google Sheets API
-- Google Gemini API key
-- Chatwoot/Evolution API (for WhatsApp)
+- Python 3.10+
+- PostgreSQL database (Supabase or local)
+- Google Cloud credentials (Gmail, Calendar, Drive APIs)
+- WhatsApp integration (Chatwoot or Evolution API)
 
-### 2. Installation
+### Installation
 
-```bash
-# Clone repository
-git clone <your-repo-url>
-cd whatsapp_hr_assistant
+1. **Clone and setup**
+   ```bash
+   git clone <repository-url>
+   cd whatsapp_hr_assistant
+   pip install -r requirements.txt
+   ```
 
-# Install dependencies
-pip install -r requirements.txt
+2. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your credentials
+   ```
 
-# Copy environment template
-cp .env.example .env
-```
+3. **Setup Google OAuth**
+   ```bash
+   python3 utils/oauth_setup.py
+   ```
 
-### 3. Configuration
+4. **Initialize database**
+   ```bash
+   python3 -c "
+   from services.memory_langgraph import get_checkpointer
+   checkpointer = get_checkpointer()
+   print('✅ Database initialized')
+   "
+   ```
 
-Edit `.env` file:
+5. **Run the server**
+   ```bash
+   uvicorn main:app --host 0.0.0.0 --port 8000
+   ```
 
-```bash
-# Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/hr_assistant
+6. **Access dashboard**
+   ```
+   http://localhost:8000
+   ```
 
-# Google APIs
+## 🔧 Configuration
+
+### Environment Variables
+
+```env
+# Google API Keys
 GOOGLE_API_KEY=your_gemini_api_key
-GOOGLE_APPLICATION_CREDENTIALS=./service-account.json
+GOOGLE_APPLICATION_CREDENTIALS=./client_secret.json
 
-# WhatsApp/Chatwoot
+# PostgreSQL Database (Direct connection required for checkpointer)
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
+
+# WhatsApp Integration (choose one or both)
+# Option 1: Chatwoot
 CHATWOOT_API_URL=https://your-chatwoot.com
-CHATWOOT_API_KEY=your_api_key
-CHATWOOT_ACCOUNT_ID=your_account_id
+CHATWOOT_API_KEY=your_key
 
-# Evolution API (optional)
+# Option 2: Evolution API
 EVOLUTION_API_URL=https://your-evolution-api.com
-EVOLUTION_API_KEY=your_api_key
+EVOLUTION_API_KEY=your_key
+EVOLUTION_INSTANCE_NAME=your_instance
 
 # Google Drive
-CV_FOLDER_ID=your_google_drive_folder_id
+CV_FOLDER_ID=your_folder_id
+SHEETS_FOLDER_ID=your_folder_id
 
-# Server
-HOST=0.0.0.0
-PORT=8000
+# Agent Settings
+MODEL_NAME=gemini-2.5-flash
+TEMPERATURE=0.7
 ```
 
-### 4. Google OAuth Setup
+### Tool Configuration
+
+The system supports multiple tool modes:
+
+```env
+# Direct LangChain tools (recommended for production)
+GMAIL_MODE=tool
+CALENDAR_MODE=tool
+SHEETS_MODE=tool
+DATETIME_MODE=tool
+CV_MODE=tool
+WEBEX_MODE=tool
+
+# MCP protocol tools (advanced)
+THINKING_MODE=mcp
+```
+
+## 📊 Memory System
+
+### LangGraph PostgreSQL Checkpointer
+
+The agent uses LangGraph's built-in checkpointer for conversation memory:
+
+```python
+from agents.hr_agent import create_agent
+
+agent = create_agent()
+
+# Each user has separate conversation history via thread_id
+result = agent.invoke(
+    {"messages": [HumanMessage(content="Your message")]},
+    config={"configurable": {"thread_id": user_phone_number}}
+)
+```
+
+**Key features:**
+- ✅ Automatic message persistence
+- ✅ Thread-based isolation (per user)
+- ✅ No manual memory management needed
+- ✅ Full conversation history access
+
+### Database Schema
+
+```sql
+-- Checkpoint tables (auto-created)
+CREATE TABLE checkpoints (
+    thread_id TEXT,
+    checkpoint_ns TEXT DEFAULT '',
+    checkpoint_id TEXT,
+    parent_checkpoint_id TEXT,
+    checkpoint JSONB,
+    metadata JSONB,
+    PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id)
+);
+
+CREATE TABLE checkpoint_blobs (
+    thread_id TEXT,
+    checkpoint_ns TEXT,
+    channel TEXT,
+    data BYTEA
+);
+
+CREATE TABLE checkpoint_writes (
+    thread_id TEXT,
+    checkpoint_ns TEXT,
+    checkpoint_id TEXT,
+    task_id TEXT,
+    data JSONB
+);
+```
+
+## 🛠️ Available Tools
+
+| Tool | Description |
+|------|-------------|
+| **cv_sheet_manager** | Create, read, update Google Sheets for candidate data |
+| **gmail** | Send, read, reply to emails |
+| **calendar** | Create, list, update calendar events |
+| **webex** | Create and manage video meetings |
+| **datetime** | Get current time, timezone conversions |
+| **process_cvs** | Extract data from CVs in Google Drive |
+| **search_candidates** | Find and rank candidates by criteria |
+| **search_create_sheet** | Find or create candidate sheets |
+
+## 📝 Testing
+
+### Interactive Jupyter Notebooks (Recommended)
+
+Comprehensive testing and learning notebooks in `tests/notebooks/`:
+
+1. **`01_tools_testing.ipynb`** ⭐ - Test all tools individually
+2. **`02_agents_testing.ipynb`** - Test agent workflows and memory
+3. **`03_custom_agent_tutorial.ipynb`** - Build custom agents from scratch
+4. **`04_mcp_integration.ipynb`** - MCP protocol deep dive
+5. **`comprehensive_test.ipynb`** - Full system validation
 
 ```bash
-# Place your OAuth credentials
-cp /path/to/client_secret.json .
-
-# Run OAuth flow (opens browser)
-python -c "from services.google_drive import google_services; print('OAuth completed')"
+# Launch notebooks
+jupyter notebook tests/notebooks/
 ```
 
-### 5. Run Application
+See [tests/notebooks/README.md](tests/notebooks/README.md) for detailed guide.
+
+### Command Line Testing
 
 ```bash
-# Start server
-python main.py
+# Quick tests
+python tests/unit/test_basic_imports.py
+python tests/integration/test_simple.py
 
-# Access dashboard
-open http://localhost:8000
+# Memory diagnostics
+python tests/integration/check_memory.py
+
+# Test specific tools
+python3 -c "
+from agents.tool_factory import get_tools
+tools = get_tools()
+print(f'Loaded {len(tools)} tools')
+"
 ```
 
-## 📊 Dashboard
+## 🔍 Monitoring & Logging
 
-The built-in monitoring dashboard provides:
+### Dashboard
 
-- **Real-time Statistics**
-  - Total requests
-  - Success rate
-  - Average processing time
-  - Failed requests count
+Access the real-time dashboard at `http://localhost:8000`:
 
-- **Request Logs**
-  - Timestamp and sender info
-  - User messages and AI responses
-  - Processing time per request
-  - Tools used in each workflow
+- **Request Statistics**: Total requests, success rate, avg processing time
+- **Recent Requests**: View all incoming messages and responses
+- **Tool Usage**: Track which tools are being used
+- **Error Tracking**: Monitor failed requests
+- **Request Details**: Drill down into individual conversations
 
-- **Detailed Views**
-  - Complete request information
-  - Tool execution breakdown
-  - Error tracking
-  - Conversation history context
+### Database Queries
 
-**Access:** `http://localhost:8000`
+```python
+from services.request_logger import request_logger
 
-## 🛠️ Usage Examples
+# Get statistics
+stats = request_logger.get_statistics()
 
-### Process CVs via WhatsApp
+# Get recent requests
+requests = request_logger.get_recent_requests(limit=50)
 
-```
-User: Start processing CVs
-
-Agent:
-✅ Found/created sheet: 962776241974
-✅ Processing 5 CVs from Google Drive...
-✅ Extracted data from 5 CVs
-📊 Candidates stored in sheet
+# Get specific request details
+details = request_logger.get_request_details(request_id)
 ```
 
-### Search Candidates
+## 🔐 Security & Best Practices
 
-```
-User: Find top 5 candidates for Senior Python Developer
-
-Agent:
-🔍 Searching candidates...
-📊 Top 5 candidates ranked:
-1. John Doe - 92% match (10 years Python, Django, AWS)
-2. Jane Smith - 87% match (8 years Python, FastAPI)
-...
-```
-
-### Schedule Interview
-
-```
-User: Schedule interview with john@example.com tomorrow at 2 PM
-
-Agent:
-📅 Interview scheduled!
-✉️ Calendar invite sent to john@example.com
-🔗 Meeting link: https://meet.google.com/abc-xyz
-```
-
-### Check Emails
-
-```
-User: Show me recent emails about interviews
-
-Agent:
-📧 Found 3 emails:
-1. From: candidate@example.com
-   Subject: Re: Interview Invitation
-   Date: 2025-10-18
-   Snippet: "Thank you for the invitation..."
-```
-
-## 🧪 Testing
-
-### Component Tests
-
-```bash
-# Open test_components.ipynb in Jupyter
-jupyter notebook test_components.ipynb
-
-# Tests include:
-# - Gmail operations (get, read, reply, search)
-# - Calendar CRUD (create, get, update, delete)
-# - CV Sheet Manager (read all, search, clear)
-# - Memory management
-# - Complete workflows
-```
-
-### Agent Tests
-
-```bash
-# Open test_agent.ipynb
-jupyter notebook test_agent.ipynb
-
-# Tests include:
-# - MCP protocol tools
-# - Sequential thinking
-# - CV processing workflows
-# - Communication tools
-# - End-to-end scenarios
-```
-
-## 📚 Documentation
-
-- **[MCP_TOOLS_OVERVIEW.md](MCP_TOOLS_OVERVIEW.md)** - Complete MCP tools reference
-- **[docs/MCP_MIGRATION.md](docs/MCP_MIGRATION.md)** - Migration guide to MCP architecture
-- **[docs/OAUTH_MIGRATION_GUIDE.md](docs/OAUTH_MIGRATION_GUIDE.md)** - OAuth setup guide
-- **[docs/FIX_PERMISSIONS.md](docs/FIX_PERMISSIONS.md)** - Google permissions troubleshooting
-
-## 🔧 MCP Tools Reference
-
-### Gmail MCP (5 Operations)
-- `send_email` - Send emails
-- `get_emails` - Get recent inbox emails
-- `read_email` - Read specific email by ID
-- `reply_email` - Reply to email threads
-- `search_emails` - Search emails by query
-
-### Calendar MCP (5 Operations)
-- `create_event` - Schedule new events
-- `list_events` - List upcoming events
-- `get_event` - Get event details
-- `update_event` - Modify existing events
-- `delete_event` - Cancel/delete events
-
-### CV Sheet Manager (7 Operations)
-- `read_all_rows` - Get all candidate data
-- `append_rows` - Add new candidates
-- `update_row` - Modify entries
-- `delete_row` - Remove entries
-- `search_rows` - Query by criteria
-- `get_row_count` - Count entries
-- `clear_sheet` - Clear all data (preserves headers)
-
-**See [MCP_TOOLS_OVERVIEW.md](MCP_TOOLS_OVERVIEW.md) for complete documentation.**
+1. **Environment Variables**: Never commit `.env` file
+2. **OAuth Tokens**: Stored in `token.pickle`, excluded from git
+3. **Database Credentials**: Use environment variables only
+4. **API Keys**: Rotate regularly, use secrets management
+5. **Direct DB Connection**: Port 5432 required for checkpointer (not pooler 6543)
 
 ## 🐛 Troubleshooting
 
-### Common Issues
+### Memory Not Working
 
-**1. Google API Permission Denied**
 ```bash
-# Check service account permissions
-python -c "from services.google_drive import google_services; google_services.test_permissions()"
+# Check checkpoints
+python3 check_memory.py
+
+# Verify tables exist
+python3 -c "
+import psycopg
+from config import settings
+conn = psycopg.connect(settings.DATABASE_URL)
+cur = conn.cursor()
+cur.execute(\"SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'checkpoint%'\")
+print([r[0] for r in cur.fetchall()])
+"
 ```
 
-**2. Database Connection Error**
+**Common issues:**
+- ❌ Using pooler port (6543) instead of direct port (5432)
+- ❌ Missing `add_messages` annotation in state
+- ❌ Tables not created properly
+
+### Tool Errors
+
 ```bash
-# Verify PostgreSQL is running
-psql -U user -d hr_assistant -c "SELECT 1;"
+# Test individual tool
+python3 -c "
+from agents.tool_factory import get_tools
+tools = get_tools()
+tool = next(t for t in tools if 'gmail' in t.name.lower())
+print(tool.invoke({'action': 'search_emails', 'query': 'test'}))
+"
 ```
 
-**3. OAuth Token Issues**
+### Google API Issues
+
 ```bash
-# Remove old token and re-authenticate
-rm token.pickle
-python -c "from services.google_drive import google_services; print('Re-authenticated')"
+# Refresh OAuth token
+python3 utils/oauth_setup.py
 ```
 
-**4. WhatsApp Webhook Not Receiving**
-- Check webhook URL is publicly accessible
-- Verify Chatwoot webhook configuration
-- Check firewall/ngrok settings
+## 📚 Project Structure
 
-### Debug Mode
-
-Enable detailed logging:
-```python
-# In config.py
-DEBUG = True
-LOG_LEVEL = "DEBUG"
 ```
-
-## 📈 Performance
-
-- **Average response time**: ~2-3 seconds
-- **CV processing**: ~5 seconds per CV
-- **Concurrent requests**: Supports 10+ simultaneous users
-- **Database**: PostgreSQL with indexed queries
-- **Caching**: OAuth tokens cached, reduces API calls
-
-## 🔐 Security
-
-- ✅ OAuth 2.0 for Google APIs
-- ✅ Environment variables for secrets
-- ✅ Service account credentials
-- ✅ Request logging for audit trails
-- ✅ No credentials in version control
+whatsapp_hr_assistant/
+├── agents/
+│   ├── hr_agent.py          # Main agent with LangGraph
+│   ├── prompts.py           # System prompts
+│   └── tool_factory.py      # Tool loading and management
+├── services/
+│   ├── memory_langgraph.py  # PostgreSQL checkpointer
+│   ├── request_logger.py    # Request logging
+│   ├── whatsapp.py          # WhatsApp integration
+│   └── google_services.py   # Google API clients
+├── tools/
+│   ├── gmail_tool.py
+│   ├── calendar_tool.py
+│   ├── cv_sheet_manager.py
+│   └── ...
+├── models/
+│   └── request_logs.py      # Database models
+├── main.py                  # FastAPI server
+├── config.py                # Configuration
+├── test_agent.ipynb         # Testing notebook
+└── check_memory.py          # Memory verification script
+```
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-## 📝 License
+## 📄 License
 
-MIT License - see LICENSE file for details
+[Your License]
 
 ## 🙏 Acknowledgments
 
-- **LangChain/LangGraph** - Agent framework
-- **Google Gemini** - LLM model
-- **Chatwoot** - WhatsApp integration
-- **FastAPI** - Web framework
-- **PostgreSQL** - Database
+- **LangGraph**: For the agent framework and checkpointer
+- **Google Gemini**: For the LLM capabilities
+- **LangChain**: For tool abstractions
+- **Chatwoot/Evolution API**: For WhatsApp integration
+
+## 📚 Documentation
+
+Comprehensive documentation available in `docs/`:
+
+- **[📋 Documentation Index](docs/DOCS_INDEX.md)** - Complete navigation hub ⭐ Start here
+- **[🔧 Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[➕ How to Add Tools](docs/HOW_TO_ADD_TOOLS.md)** - Developer guide
+- **[🔌 MCP Integration](docs/MCP_INTEGRATION_GUIDE.md)** - MCP protocol guide
+- **[💾 Checkpointer Setup](docs/setup/CHECKPOINTER_SETUP.md)** - Memory configuration
+- **[📱 Webex Setup](WEBEX_SETUP.md)** - Webex OAuth configuration
+- **[🧪 Test Notebooks](tests/notebooks/README.md)** - Interactive testing guide
+
+See [docs/README.md](docs/README.md) for full documentation index.
 
 ## 📞 Support
 
-- 📧 Email: support@example.com
-- 🐛 Issues: [GitHub Issues](https://github.com/your-repo/issues)
-- 📖 Docs: [MCP_TOOLS_OVERVIEW.md](MCP_TOOLS_OVERVIEW.md)
-
-## 🗺️ Roadmap
-
-- [ ] Multi-language support
-- [ ] Voice message processing
-- [ ] Advanced analytics dashboard
-- [ ] Integration with more ATS systems
-- [ ] Automated interview question generation
-- [ ] Video interview scheduling (Zoom, Teams)
+For issues and questions:
+- **Documentation**: [docs/DOCS_INDEX.md](docs/DOCS_INDEX.md)
+- **Troubleshooting**: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+- **Test Notebooks**: [tests/notebooks/](tests/notebooks/)
+- **GitHub Issues**: Create an issue for bugs or feature requests
 
 ---
 
-**Built with ❤️ using LangGraph, Google Gemini, and MCP**
+**Built with ❤️ for modern HR recruitment**
