@@ -1,52 +1,43 @@
-from typing import List
+from typing import Annotated
 from typing_extensions import TypedDict
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage, AnyMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
+from langgraph.graph.message import add_messages
 from config import settings
 from agents.prompts import SYSTEM_PROMPT
-from mcp import (
-    list_tools, execute_tool,
-    SequentialThinkingTool,
-    CVSheetManagerTool,
-    GmailMCPTool,
-    CalendarMCPTool,
-    WebexMCPTool,
-    DateTimeMCPTool,
-    CVProcessTool,
-    SearchCandidatesTool,
-    SearchCreateSheetTool
-)
-from mcp.base import mcp_registry
+from agents.tool_factory import get_tools
+from services.memory_langgraph import get_checkpointer
 
 class AgentState(TypedDict):
-    messages: List[AnyMessage]
+    messages: Annotated[list[AnyMessage], add_messages]
     sender_phone: str
     sender_identifier: str
 
 def create_agent():
-    """Create the LangGraph agent with MCP tools"""
+    """
+    Create the LangGraph agent with proper memory and tool management.
+
+    Features:
+    - PostgreSQL checkpointer for conversation memory
+    - Configurable tools via TOOL_MODE (mcp, mcp_client, direct)
+    - Proper async/sync compatibility
+    """
     llm = ChatGoogleGenerativeAI(
         model=settings.MODEL_NAME,
         google_api_key=settings.GOOGLE_API_KEY,
         temperature=settings.TEMPERATURE
     )
 
-    # Register all MCP tools
-    mcp_registry.register(SequentialThinkingTool())
-    mcp_registry.register(CVSheetManagerTool())
-    mcp_registry.register(GmailMCPTool())
-    mcp_registry.register(CalendarMCPTool())
-    mcp_registry.register(WebexMCPTool())
-    mcp_registry.register(DateTimeMCPTool())
-    mcp_registry.register(CVProcessTool())
-    mcp_registry.register(SearchCandidatesTool())
-    mcp_registry.register(SearchCreateSheetTool())
+    # Get tools based on TOOL_MODE configuration
+    all_tools = get_tools()
 
-    # Agent uses ONLY execute_tool - list_tools will be called manually if needed
-    # We don't bind list_tools because it would confuse the LLM
-    tools = [execute_tool]
-    llm_with_tools = llm.bind_tools(tools)
+    if not all_tools:
+        print("⚠️  WARNING: No tools loaded! Agent will have limited functionality.")
+        llm_with_tools = llm
+    else:
+        print(f"✅ Agent configured with {len(all_tools)} tools")
+        llm_with_tools = llm.bind_tools(all_tools)
 
     def agent_node(state: AgentState) -> AgentState:
         messages = state["messages"]
@@ -76,15 +67,19 @@ def create_agent():
         last_message = messages[-1]
         if not hasattr(last_message, 'tool_calls') or not last_message.tool_calls:
             return state
+        
         tool_messages = []
         for tool_call in last_message.tool_calls:
             tool_name = tool_call['name']
             tool_args = tool_call['args']
+            
+            # Find the tool
             tool_func = None
-            for t in tools:
+            for t in all_tools:
                 if t.name == tool_name:
                     tool_func = t
                     break
+            
             if tool_func:
                 try:
                     result = tool_func.invoke(tool_args)
@@ -106,6 +101,7 @@ def create_agent():
                     content=f'{{"error": "Tool {tool_name} not found"}}',
                     tool_call_id=tool_call['id']
                 ))
+        
         return {"messages": messages + tool_messages}
 
     def should_continue(state: AgentState) -> str:
@@ -121,4 +117,7 @@ def create_agent():
     graph.set_entry_point("agent")
     graph.add_conditional_edges("agent", should_continue, {"tools": "tools", "end": END})
     graph.add_edge("tools", "agent")
-    return graph.compile()
+
+    # Compile with checkpointer for automatic memory management
+    checkpointer = get_checkpointer()
+    return graph.compile(checkpointer=checkpointer)

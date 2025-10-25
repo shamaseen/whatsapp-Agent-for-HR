@@ -10,7 +10,6 @@ from datetime import datetime
 from langchain_core.messages import HumanMessage, AIMessage
 from agents.hr_agent import create_agent
 from services.whatsapp import messaging_client
-from services.memory import ConversationMemory
 from services.request_logger import request_logger
 from config import settings
 import time
@@ -32,12 +31,11 @@ async def validate_config():
             print("✅ Chatwoot API configured")
         if messaging_client.is_evolution_enabled():
             print("✅ Evolution API configured")
-
 def process_message_background(
     body: dict,
     conversation: dict,
     sender_identifier: str,
-    sender_phone: str,
+    sender_phone: str,      
     message_content: str
 ):
     """Background task to process message and send response"""
@@ -58,29 +56,38 @@ def process_message_background(
             source="whatsapp"
         )
 
-        # Initialize memory
-        memory = ConversationMemory(sender_identifier)
-        history = memory.get_history(limit=2)
-
-        # Build messages for agent
-        agent_messages = []
-        for h in history:
-            if h['role'] == 'user':
-                agent_messages.append(HumanMessage(content=h['content']))
-            elif h['role'] == 'assistant':
-                agent_messages.append(AIMessage(content=h['content']))
-
-        # Add current message
+        # Build message for agent
         user_input = f"sender: {sender_phone}\n\nmessage: {message_content}"
-        agent_messages.append(HumanMessage(content=user_input))
+        agent_messages = [HumanMessage(content=user_input)]
 
-        # Run agent
+        # Run agent with checkpointer (memory managed automatically by thread_id)
+        thread_id = sender_phone
         print(f"🤖 Processing message from {sender_phone}... [Request ID: {request_id}]")
-        result = agent_app.invoke({
-            "messages": agent_messages,
-            "sender_phone": sender_phone,
-            "sender_identifier": sender_identifier
-        })
+        print(f"   Thread ID: {thread_id}")
+
+        config = {"configurable": {"thread_id": thread_id}}
+        result = agent_app.invoke(
+            {
+                "messages": agent_messages,
+                "sender_phone": sender_phone,
+                "sender_identifier": sender_identifier
+            },
+            config=config
+        )
+
+        print(f"   Message count in result: {len(result['messages'])}")
+
+        # Debug: Check checkpoint was saved
+        try:
+            import psycopg
+            conn = psycopg.connect(settings.DATABASE_URL)
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM checkpoints WHERE thread_id = %s", (thread_id,))
+                count = cur.fetchone()[0]
+                print(f"   Checkpoints in DB for {thread_id}: {count}")
+            conn.close()
+        except Exception as e:
+            print(f"   ⚠️ Could not verify checkpoint: {e}")
 
         # Extract tools used and count LLM calls
         tools_used = []
@@ -118,9 +125,8 @@ def process_message_background(
         if not last_ai_message:
             last_ai_message = "I apologize, I couldn't process your request."
 
-        # Save to memory
-        memory.add_message("user", message_content)
-        memory.add_message("assistant", last_ai_message)
+        # Memory is automatically saved by LangGraph checkpointer
+        # No manual memory.add_message() needed
 
         # Calculate processing time
         processing_time = (time.time() - start_time) * 1000  # Convert to ms
@@ -132,8 +138,8 @@ def process_message_background(
             processing_time_ms=processing_time,
             llm_calls_count=llm_calls,
             tools_used=tools_used,
-            had_history=len(history) > 0,
-            history_count=len(history),
+            had_history=True,  # Checkpointer always maintains history
+            history_count=len(result["messages"]),
             status="success"
         )
 
@@ -183,44 +189,37 @@ def process_message_background(
 async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
     """Main webhook for WhatsApp messages from Chatwoot - Returns immediately"""
     data = await request.json()
-
-    # Extract body from webhook (Chatwoot format)
     body = data.get('body', data)
 
-    # Filter messages
-    message_type = body.get('message_type')
-    if message_type != 'incoming':
+    if body.get('message_type') != 'incoming':
         return {"status": "ignored", "reason": "not incoming"}
 
-    # Get conversation data
     conversation = body.get('conversation', {})
-    labels = conversation.get('labels', [])
-    if 'hr' not in labels:
+    if 'hr' not in conversation.get('labels', []):
         return {"status": "ignored", "reason": "no hr label"}
 
-    # Get sender information from conversation meta
     sender = conversation.get('meta', {}).get('sender', {})
-    sender_identifier = sender.get('identifier')
     sender_phone = sender.get('phone_number', '').replace('+', '').replace(' ', '')
-    sender_name = sender.get('name', 'Unknown')
+    
+    # ✅ CRITICAL: Ensure we have a valid phone number
+    if not sender_phone:
+        print("⚠️  No phone number found in webhook")
+        return {"status": "ignored", "reason": "no phone number"}
 
-    # Get message content
     message_content = body.get('content', '')
-
     if not message_content:
         return {"status": "ignored", "reason": "no message content"}
 
-    # Add background task to process and send response
+    # Pass sender_phone (normalized) to background task
     background_tasks.add_task(
         process_message_background,
         body=body,
         conversation=conversation,
-        sender_identifier=sender_identifier,
-        sender_phone=sender_phone,
+        sender_identifier=sender.get('identifier'),  # still pass for logging
+        sender_phone=sender_phone,  # ✅ This will be used as thread_id
         message_content=message_content
     )
 
-    # Return immediately
     print(f"📨 Webhook received from {sender_phone}, processing in background...")
     return {"status": "accepted", "message": "Processing in background"}
 
@@ -228,6 +227,53 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+
+@app.get("/oauth/webex/callback")
+async def webex_oauth_callback(code: str = None, error: str = None):
+    """OAuth2 callback for Webex authorization"""
+    if error:
+        return HTMLResponse(
+            f"<html><body><h1>Error</h1><p>Authorization failed: {error}</p></body></html>",
+            status_code=400
+        )
+
+    if not code:
+        return HTMLResponse(
+            "<html><body><h1>Error</h1><p>No authorization code received</p></body></html>",
+            status_code=400
+        )
+
+    try:
+        from mcp_integration.tools.communication.webex_tools import webex_client
+
+        if not webex_client:
+            return HTMLResponse(
+                "<html><body><h1>Error</h1><p>Webex client not initialized</p></body></html>",
+                status_code=500
+            )
+
+        # Exchange code for token
+        token_data = webex_client.exchange_code_for_token(code)
+
+        return HTMLResponse(f"""
+            <html>
+            <body>
+                <h1>Success!</h1>
+                <p>Webex has been authorized successfully.</p>
+                <p>Access token saved to .webex_token.json</p>
+                <p>You can close this window and use the Webex integration.</p>
+                <hr>
+                <small>Token expires in: {token_data.get('expires_in', 'N/A')} seconds</small>
+            </body>
+            </html>
+        """)
+
+    except Exception as e:
+        return HTMLResponse(
+            f"<html><body><h1>Error</h1><p>Failed to exchange token: {str(e)}</p></body></html>",
+            status_code=500
+        )
 
 
 # ============================================================================
@@ -731,7 +777,6 @@ async def search_requests(phone: str = None, status: str = None, limit: int = 50
         status=status,
         limit=limit
     )
-
 
 if __name__ == "__main__":
     import uvicorn
