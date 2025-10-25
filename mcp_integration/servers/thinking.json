@@ -1,0 +1,11 @@
+{
+  "name": "thinking",
+  "description": "Official Sequential Thinking MCP Server by Anthropic",
+  "command": "npx",
+  "args": [
+    "-y",
+    "enhanced-thinking-mcp"
+  ],
+  "transport": "stdio",
+  "enabled": true
+}
