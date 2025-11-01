@@ -39,6 +39,8 @@ python-dotenv==1.0.0
 # Utilities
 python-dateutil==2.8.2
 pytz==2024.1
+PyYAML>=6.0  # For dynamic tool configuration
+nest-asyncio>=1.5.0  # For nested event loops in tool loading
 
 # Webex
 webexteamssdk==1.6.1
