@@ -1,0 +1,11 @@
+{
+  "name": "thinking",
+  "description": "Sequential Thinking MCP Server",
+  "type": "stdio",
+  "command": "npx",
+  "args": [
+    "@modelcontextprotocol/server-sequential-thinking"
+  ],
+  "transport": "stdio",
+  "enabled": false
+}

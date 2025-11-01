@@ -1,0 +1,15 @@
+{
+  "name": "gmail",
+  "description": "Gmail MCP Server by GongRzhe - Auto authentication support",
+  "type": "stdio",
+  "command": "npx",
+  "args": [
+    "@gongrzhe/server-gmail-autoauth-mcp"
+  ],
+  "env":
+  {
+    "GOOGLE_OAUTH_CREDENTIALS":"./client_secret.json"
+  },
+  "transport": "stdio",
+  "enabled": true
+}

@@ -1,0 +1,11 @@
+{
+  "name": "datetime",
+  "description": "Official MCP Time Server by Anthropic",
+  "type": "stdio",
+  "command": "uvx",
+  "args": [
+    "mcp-server-time"
+  ],
+  "transport": "stdio",
+  "enabled": true
+}

@@ -1,0 +1,327 @@
+# ============================================================================
+# COMPREHENSIVE MCP TOOLS CONFIGURATION
+# ============================================================================
+# Location: config/tools.yaml
+#
+# This file configures all tools available to the WhatsApp HR Assistant.
+# Tools can be loaded from:
+#   1. Internal MCP tools (built-in Python implementations)
+#   2. External MCP servers (stdio, HTTP, WebSocket, etc.)
+#
+# For more information on MCP, see: https://modelcontextprotocol.io/
+#
+# ============================================================================
+# QUICK START
+# ============================================================================
+#
+# To enable a tool:
+#   1. Set "enabled: true"
+#   2. Choose a provider:
+#      - "internal_mcp"  → Use built-in Python implementation (fastest, most reliable)
+#      - "mcp_client"    → Connect to external MCP server (for community/public tools)
+#      - "auto"          → Automatically choose best available (internal preferred)
+#
+# Example:
+#   gmail:
+#     enabled: true
+#     provider: "mcp_client"
+#     mcp_config_file: "gmail"  # Points to config/mcp_servers/gmail.json
+#
+# ============================================================================
+# TOOL CONFIGURATIONS
+# ============================================================================
+tools:
+  # ==========================================================================
+  # GMAIL TOOL
+  # ==========================================================================
+  # Gmail API access for sending and managing emails
+  # Available: internal_mcp (built-in), mcp_client (external)
+  gmail:
+    enabled: true
+    provider: "mcp_client"  # Using external @gongrzhe/server-gmail-autoauth-mcp
+    # The mcp_config_file points to config/mcp_servers/gmail.json
+    # That file contains the actual MCP server configuration
+    mcp_config_file: "gmail"
+
+  # ==========================================================================
+  # CALENDAR TOOL
+  # ==========================================================================
+  # Google Calendar API for scheduling and managing events
+  # Available: internal_mcp (built-in), mcp_client (external)
+  calendar:
+    enabled: true
+    provider: "mcp_client"  # Using external @cocal/google-calendar-mcp
+    mcp_config_file: "calendar"
+
+  # ==========================================================================
+  # DATETIME TOOL
+  # ==========================================================================
+  # Get current time, convert timezones, calculate durations
+  # Available: internal_mcp (built-in), mcp_client (external)
+  datetime:
+    enabled: true
+    provider: "mcp_client"  # Using external mcp-server-time
+    mcp_config_file: "datetime"
+
+  # ==========================================================================
+  # CV SHEET MANAGER
+  # ==========================================================================
+  # Manage candidate CVs in Google Sheets
+  # Available: internal_mcp (built-in only)
+  cv_sheet_manager:
+    enabled: true
+    provider: "internal_mcp"  # Built-in implementation
+    # No mcp_config_file needed for internal tools
+
+  # ==========================================================================
+  # CV PROCESSING TOOLS
+  # ==========================================================================
+  # Process and analyze CV documents
+  # Available: internal_mcp (built-in only)
+  process_cvs:
+    enabled: true
+    provider: "internal_mcp"
+
+  # Search candidates in the database
+  search_candidates:
+    enabled: true
+    provider: "internal_mcp"
+
+  # Create and search Google Sheets
+  search_create_sheet:
+    enabled: true
+    provider: "internal_mcp"
+
+  # ==========================================================================
+  # WEBEX TOOL
+  # ==========================================================================
+  # Send messages via Webex
+  # Available: internal_mcp (built-in only)
+  webex:
+    enabled: true
+    provider: "internal_mcp"
+
+  # ==========================================================================
+  # SEQUENTIAL THINKING TOOL
+  # ==========================================================================
+  # AI-powered reasoning and planning tool
+  # Available: mcp_client (external only)
+  # Note: Disabled by default due to stability issues
+  thinking:
+    enabled: false
+    provider: "mcp_client"
+    mcp_config_file: "thinking"
+
+  # ==========================================================================
+  # EXAMPLE: CUSTOM STDIO SERVER
+  # ==========================================================================
+  # Example: Using a local Python script as MCP server
+  # Uncomment and customize to use your own server
+  #
+  # my_custom_tool:
+  #   enabled: false
+  #   provider: "mcp_client"
+  #   # Inline config instead of separate file:
+  #   mcp_config:
+  #     type: "stdio"
+  #     command: "python"
+  #     args: ["/path/to/my/server.py"]
+  #     env:
+  #       DEBUG: "true"
+  #       API_KEY: "your-api-key"
+
+  # ==========================================================================
+  # EXAMPLE: STREAMABLE HTTP SERVER
+  # ==========================================================================
+  # Example: Using a remote HTTP MCP server
+  # Uncomment and customize to use a remote server
+  #
+  # remote_weather:
+  #   enabled: false
+  #   provider: "mcp_client"
+  #   mcp_config:
+  #     type: "streamable_http"
+  #     url: "https://api.example.com/mcp"
+  #     headers:
+  #       Authorization: "Bearer your-token"
+  #       Content-Type: "application/json"
+
+  # ==========================================================================
+  # EXAMPLE: WEBSOCKET SERVER
+  # ==========================================================================
+  # Example: Using a WebSocket-based MCP server
+  # Uncomment and customize to use a WebSocket server
+  #
+  # realtime_data:
+  #   enabled: false
+  #   provider: "mcp_client"
+  #   mcp_config:
+  #     type: "websocket"
+  #     url: "wss://realtime.example.com/mcp"
+  #     headers:
+  #       Authorization: "Bearer your-token"
+
+  # ==========================================================================
+  # EXAMPLE: MULTI-SERVER SETUP
+  # ==========================================================================
+  # Example: Using multiple servers together
+  # Uncomment and customize to use multiple servers
+  #
+  # multi_tool_suite:
+  #   enabled: false
+  #   provider: "mcp_client"
+  #   mcp_config:
+  #     type: "multi"
+  #     servers:
+  #       - name: "weather"
+  #         type: "stdio"
+  #         command: "npx"
+  #         args: ["-y", "@modelcontextprotocol/server-weather"]
+  #       - name: "news"
+  #         type: "streamable_http"
+  #         url: "https://news-api.example.com/mcp"
+  #       - name: "stocks"
+  #         type: "websocket"
+  #         url: "wss://stocks.example.com/mcp"
+
+# ============================================================================
+# ADVANCED CONFIGURATIONS (Optional)
+# ============================================================================
+# Override specific tool configurations
+# Use this to customize individual tools without modifying the main config
+#
+# Example:
+# tool_overrides:
+#   gmail:
+#     env:
+#       CUSTOM_API_KEY: "override-value"
+#     timeout: 30
+#   calendar:
+#     retry_attempts: 5
+
+tool_overrides: null
+
+# ============================================================================
+# MULTI-SERVER CONFIGURATIONS (Optional)
+# ============================================================================
+# Load multiple tools from a suite configuration
+# This is an alternative to configuring each tool individually
+#
+# Example:
+# multi_servers:
+#   gmail_suite:
+#     enabled: false
+#     type: "multi"
+#     servers:
+#       - name: "gmail"
+#         type: "stdio"
+#         command: "npx"
+#         args: ["-y", "@gongrzhe/server-gmail-autoauth-mcp"]
+
+multi_servers: null
+
+# ============================================================================
+# GLOBAL MCP CLIENT SETTINGS
+# ============================================================================
+# Default settings applied to all MCP client tools
+# These can be overridden per-tool if needed
+#
+# Parameters:
+#   - retry_attempts: Number of retry attempts on failure (default: 3)
+#   - retry_delay: Initial delay between retries in seconds (default: 1.0)
+#   - retry_max_delay: Maximum delay between retries in seconds (default: 60.0)
+#   - connection_timeout: Connection timeout in seconds (default: 30.0)
+#   - enable_logging: Enable detailed logging (default: true)
+#
+global_mcp_settings:
+  retry_attempts: 3
+  retry_delay: 1.0
+  retry_max_delay: 60.0
+  connection_timeout: 30.0
+  enable_logging: true
+
+# ============================================================================
+# PROVIDER DOCUMENTATION
+# ============================================================================
+#
+# internal_mcp:
+#   Description: Built-in Python implementations
+#   Pros: Fastest, most reliable, no external dependencies
+#   Cons: Limited to built-in tools
+#   When to use: Default choice for production
+#
+# mcp_client:
+#   Description: External MCP servers via various transports
+#   Pros: Access to community tools, can use any language
+#   Cons: Slower, requires server setup, potential connection issues
+#   When to use: When you need a specific tool not available internally
+#
+#   Supported transports:
+#     - stdio: Local subprocess (most common, works everywhere)
+#     - streamable_http: HTTP-based (recommended for remote servers)
+#     - websocket: WebSocket (for real-time data)
+#     - sse: HTTP+SSE (deprecated, use streamable_http instead)
+#
+#   Example configurations:
+#
+#     stdio:
+#       mcp_config:
+#         type: "stdio"
+#         command: "npx"
+#         args: ["-y", "@some/mcp-server"]
+#         env:
+#           API_KEY: "your-key"
+#
+#     streamable_http:
+#       mcp_config:
+#         type: "streamable_http"
+#         url: "https://api.example.com/mcp"
+#         headers:
+#           Authorization: "Bearer token"
+#
+#     websocket:
+#       mcp_config:
+#         type: "websocket"
+#         url: "wss://realtime.example.com/mcp"
+#         headers:
+#           Authorization: "Bearer token"
+#
+#     multi:
+#       mcp_config:
+#         type: "multi"
+#         servers:
+#           - name: "tool1"
+#             type: "stdio"
+#             command: "..."
+#           - name: "tool2"
+#             type: "streamable_http"
+#             url: "..."
+#
+# ============================================================================
+# COMMON ISSUES AND SOLUTIONS
+# ============================================================================
+#
+# Issue: "fileno" error when loading tools
+# Solution: This happens when sys.stderr is redirected (like in notebooks).
+#          The fix is already implemented using warning filters instead of
+#          stderr redirection.
+#
+# Issue: Tool not found in registry
+# Solution: Make sure the tool is discovered by running:
+#          python -m src.tools.registry
+#
+# Issue: Connection failed to MCP server
+# Solution: Check:
+#          1. Server configuration in config/mcp_servers/
+#          2. Command is installed (npx, python, etc.)
+#          3. Environment variables are set
+#          4. Network connectivity (for HTTP/WebSocket)
+#
+# Issue: Tools not loading
+# Solution: Check:
+#          1. enabled: true
+#          2. provider is correct
+#          3. mcp_config_file exists (for mcp_client)
+#          4. Check logs for errors
+#
+# ============================================================================

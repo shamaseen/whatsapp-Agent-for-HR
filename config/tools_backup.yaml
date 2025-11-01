@@ -1,0 +1,47 @@
+# ============================================================================
+# Dynamic Tool Configuration
+# ============================================================================
+tools:
+  gmail:
+    enabled: true
+    provider: "mcp_client"
+    mcp_config_file: "gmail"
+
+  calendar:
+    enabled: true
+    provider: "mcp_client"
+    mcp_config_file: "calendar"
+
+  datetime:
+    enabled: true
+    provider: "mcp_client"
+    mcp_config_file: "datetime"
+
+  cv_sheet_manager:
+    enabled: true
+    provider: "internal_mcp"
+
+  process_cvs:
+    enabled: true
+    provider: "internal_mcp"
+
+  search_candidates:
+    enabled: true
+    provider: "internal_mcp"
+
+  search_create_sheet:
+    enabled: true
+    provider: "internal_mcp"
+
+  webex:
+    enabled: true
+    provider: "internal_mcp"
+
+  thinking:
+    enabled: false
+    provider: "mcp_client"
+    mcp_config_file: "thinking"
+
+global_mcp_settings:
+  retry_attempts: 1
+  retry_delay: 0.1
