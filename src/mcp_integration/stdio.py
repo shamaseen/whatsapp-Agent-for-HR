@@ -40,64 +40,78 @@ class StdioMCPClient(RetryMixin, BaseMCPClient):
                 args=self.config["args"],
                 env=self.config.get("env")
             )
-            
+
             # Connect to server using context manager
             self._client_context = stdio_client(server_params)
             self._read, self._write = await self._client_context.__aenter__()
-            
+
             # Create session
             self._session_context = ClientSession(self._read, self._write)
             self.session = await self._session_context.__aenter__()
-            
+
             # Initialize the connection
             await self.session.initialize()
-            
+
             # Use LangChain's official adapter to load tools
             tools = await load_mcp_tools(self.session)
 
             # Wrap tools to support both sync and async invocation
             # This fixes the "StructuredTool does not support sync invocation" error
             self.tools = wrap_tools_list(tools, prefix=self.server_name)
-            
+
             self._is_connected = True
             print(f"   ✓ Stdio connected: {len(self.tools)} tool(s) loaded")
             return self.tools
-            
+
         except Exception as e:
+            # Clean up on error
+            await self._cleanup_internal()
             print(f"   ✗ Stdio connection failed: {str(e)}")
-            await self.close()  # Ensure cleanup on error
             raise
+
+    async def _cleanup_internal(self):
+        """Internal cleanup without closing session (for use during retries)"""
+        if self._session_context:
+            try:
+                self._session_context = None
+            except:
+                pass
+
+        if self._client_context:
+            try:
+                self._client_context = None
+            except:
+                pass
+
+        self.session = None
+        self._is_connected = False
     
     async def close(self):
         """Close stdio connection gracefully"""
         import warnings
         import asyncio
 
+        # If already closed, just return
+        if not self._is_connected and not self._session_context and not self._client_context:
+            return
+
         # Close session first
         if self._session_context:
             try:
-                # Ensure we're in the same task context
-                loop = asyncio.get_running_loop()
                 await self._session_context.__aexit__(None, None, None)
-            except RuntimeError as e:
-                # Suppress anyio cancel scope errors - these are harmless cleanup warnings
-                if "cancel scope" not in str(e).lower():
-                    pass  # Silently ignore - this is a known MCP SDK cleanup issue
-            except Exception as e:
-                pass  # Silently ignore cleanup errors
+            except Exception:
+                pass  # Silently ignore all cleanup errors
             finally:
                 self._session_context = None
 
         # Close client connection
         if self._client_context:
             try:
-                # Suppress all warnings and errors during cleanup
                 with warnings.catch_warnings():
                     warnings.filterwarnings("ignore")
                     await self._client_context.__aexit__(None, None, None)
-            except (RuntimeError, Exception):
-                # Ignore all cleanup errors - the connection is closing anyway
-                pass
+            except Exception:
+                pass  # Ignore all cleanup errors
             finally:
                 self._client_context = None
 

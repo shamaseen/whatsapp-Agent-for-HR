@@ -176,7 +176,7 @@ class RetryMixin:
     async def connect_with_retry(self) -> Any:
         """
         Connect with automatic retry on failure
-        
+
         Returns:
             Result from connect() method
         """
@@ -186,7 +186,15 @@ class RetryMixin:
             print(f"   ⟳ [{server_name}] Connection retry {attempt}/{self.retry_config.max_attempts}")
             print(f"      Error: {str(error)[:100]}")
             print(f"      Waiting {delay:.1f}s before retry...")
-        
+
+            # For stdio connections, properly close before each retry
+            if hasattr(self, 'close'):
+                await self.close()
+
+        # For stdio connections, close any existing connection first
+        if hasattr(self, 'close'):
+            await self.close()
+
         # Retry on connection-related errors
         return await retry_async(
             func=self.connect,

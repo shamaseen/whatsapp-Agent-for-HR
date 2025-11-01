@@ -81,7 +81,6 @@ class ToolLoader:
             List of loaded LangChain tools
         """
         # Optional dry-run to avoid external connections during tests/notebooks
-        # BUT still load the tools for testing - just skip actual API calls
         skip_connect = os.getenv("TOOL_LOADER_SKIP_CONNECT") == "1"
         dry_run = os.getenv("TOOL_LOADER_DRY_RUN") == "1"
 
@@ -94,28 +93,24 @@ class ToolLoader:
         if self.loaded_tools:
             return self.loaded_tools
 
-        # Suppress all async generator cleanup warnings
+        # Suppress warnings to avoid anyio/mcp cleanup warnings
         import warnings
-        import sys
 
-        # Save stderr
-        original_stderr = sys.stderr
-
-        # Try to get running event loop
+        # Check if we're in a running loop (e.g., Jupyter notebook)
         try:
             loop = asyncio.get_running_loop()
-            # If there's a running loop, we need to handle async differently
+            # We're in a running loop - use nest_asyncio
             import nest_asyncio
             nest_asyncio.apply()
 
             # Set up custom exception handler to suppress anyio cleanup warnings
             def handle_exception(loop, context):
                 """Suppress anyio cancel scope errors"""
-                exception = context.get('exception')
+                exception = context.get("exception")
                 if exception:
                     exc_str = str(exception)
                     # Suppress known harmless errors
-                    if 'cancel scope' in exc_str or 'async_generator' in exc_str:
+                    if "cancel scope" in exc_str or "async_generator" in exc_str:
                         return
                 # For other exceptions, use default handler
                 if loop.get_exception_handler():
@@ -126,24 +121,17 @@ class ToolLoader:
             loop.set_exception_handler(handle_exception)
 
             try:
-                # Suppress stderr during tool loading to hide async generator warnings
-                import io
-                sys.stderr = io.StringIO()
                 self.loaded_tools = loop.run_until_complete(self._load_tools_async())
             finally:
-                # Restore stderr and handler
-                sys.stderr = original_stderr
                 loop.set_exception_handler(original_handler)
 
         except RuntimeError:
-            # No event loop running, create one
-            try:
-                # Suppress stderr during tool loading
-                import io
-                sys.stderr = io.StringIO()
+            # No running loop - use asyncio.run()
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*cancel scope.*")
+                warnings.filterwarnings("ignore", message=".*async_generator.*")
+                warnings.filterwarnings("ignore", message=".*TaskGroup.*")
                 self.loaded_tools = asyncio.run(self._load_tools_async())
-            finally:
-                sys.stderr = original_stderr
 
         return self.loaded_tools
 
